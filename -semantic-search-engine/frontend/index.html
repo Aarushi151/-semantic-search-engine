@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Semantic Search Engine</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222535;
+      --border: #2e3250;
+      --accent: #6366f1;
+      --accent2: #22d3ee;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --font: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo { font-size: 1.4rem; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; }
+    .logo span { color: var(--accent2); }
+    .header-sub { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+    .grid { display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .panel-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Upload Area */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(99,102,241,0.06); }
+    .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+    .upload-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .upload-text { font-size: 0.85rem; color: var(--muted); }
+    .upload-text strong { color: var(--accent); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.5rem 1rem;
+      border-radius: 7px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .doc-list { margin-top: 1rem; }
+    .doc-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--surface2);
+      border-radius: 6px;
+      margin-bottom: 6px;
+      font-size: 0.82rem;
+    }
+    .doc-icon { font-size: 1rem; }
+    .doc-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .doc-chunks { font-size: 0.75rem; color: var(--success); white-space: nowrap; }
+
+    .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 1rem; }
+    .stat { background: var(--surface2); border-radius: 8px; padding: 0.75rem; text-align: center; }
+    .stat-val { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+
+    /* Search */
+    .search-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+    .search-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem 1rem;
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: var(--accent); }
+    .search-input::placeholder { color: var(--muted); }
+
+    .tabs { display: flex; gap: 6px; margin-bottom: 1rem; flex-wrap: wrap; }
+    .tab {
+      padding: 0.4rem 0.9rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .topk-row { display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--muted); }
+    .topk-row input[type=range] { flex: 1; accent-color: var(--accent); }
+    .topk-val { color: var(--accent); font-weight: 600; min-width: 20px; }
+
+    /* Results */
+    .results-area { min-height: 200px; }
+
+    .result-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 10px;
+      position: relative;
+      transition: border-color 0.15s;
+    }
+    .result-card:hover { border-color: var(--accent); }
+
+    .result-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .result-rank {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .result-source { font-size: 0.78rem; color: var(--accent2); flex: 1; }
+    .score-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .score-bar { height: 5px; border-radius: 99px; background: var(--border); width: 80px; overflow: hidden; }
+    .score-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.4s; }
+    .score-val { font-size: 0.78rem; color: var(--success); font-weight: 600; white-space: nowrap; }
+
+    .result-text { font-size: 0.88rem; color: var(--text); line-height: 1.6; }
+    .result-text .highlight { background: rgba(99,102,241,0.25); border-radius: 3px; padding: 0 2px; }
+
+    /* Compare mode */
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .compare-col-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.4rem 0.8rem;
+      border-radius: 5px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    .col-semantic { background: rgba(99,102,241,0.15); color: var(--accent); }
+    .col-keyword { background: rgba(245,158,11,0.15); color: var(--warning); }
+
+    /* Empty / loading states */
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+    .empty-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .empty-text { font-size: 0.9rem; }
+
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 2rem auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .toast {
+      position: fixed;
+      bottom: 1.5rem; right: 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1.25rem;
+      font-size: 0.875rem;
+      max-width: 320px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      z-index: 999;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.25s;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: var(--success); }
+    .toast.error { border-color: var(--danger); }
+
+    .progress-bar { height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: 8px; display: none; }
+    .progress-fill { height: 100%; background: var(--accent); border-radius: 99px; width: 0; transition: width 0.3s; }
+
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: 1fr; }
+      .compare-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Semantic<span>Search</span></div>
+    <div class="header-sub">AI-powered document retrieval · FAISS + Sentence Transformers + LangChain</div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="grid">
+
+    <!-- LEFT: Upload Panel -->
+    <aside>
+      <div class="panel">
+        <div class="panel-title">📄 Documents</div>
+
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="fileInput" accept=".txt,.pdf" multiple />
+          <div class="upload-icon">☁️</div>
+          <div class="upload-text"><strong>Click to upload</strong> or drag & drop<br>.txt or .pdf files</div>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="stat-row">
+          <div class="stat">
+            <div class="stat-val" id="statDocs">0</div>
+            <div class="stat-label">Docs</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val" id="statChunks">0</div>
+            <div class="stat-label">Chunks</div>
+          </div>
+        </div>
+
+        <div class="doc-list" id="docList"></div>
+
+        <div style="margin-top:1rem; display:flex; justify-content:flex-end;">
+          <button class="btn btn-outline btn-sm" onclick="clearDocs()">🗑 Clear all</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT: Search Panel -->
+    <main>
+      <div class="panel">
+        <div class="panel-title">🔍 Search</div>
+
+        <div class="search-bar">
+          <input class="search-input" id="queryInput" type="text" placeholder="Ask a question or enter a search phrase..." />
+          <button class="btn btn-primary" id="searchBtn" onclick="doSearch()">Search</button>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-mode="semantic" onclick="setMode('semantic', this)">🧠 Semantic</button>
+          <button class="tab" data-mode="keyword" onclick="setMode('keyword', this)">🔑 Keyword</button>
+          <button class="tab" data-mode="compare" onclick="setMode('compare', this)">⚖️ Compare</button>
+        </div>
+
+        <div class="topk-row">
+          <span>Top-K results:</span>
+          <input type="range" min="1" max="10" value="5" id="topkSlider" oninput="document.getElementById('topkVal').textContent=this.value" />
+          <span class="topk-val" id="topkVal">5</span>
+        </div>
+
+        <div class="results-area" id="resultsArea">
+          <div class="empty">
+            <div class="empty-icon">🔍</div>
+            <div class="empty-text">Upload documents and enter a query to begin searching.</div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API = "https://semantic-search-backend.redriver-e5e160cf.eastus.azurecontainerapps.io";
+  let currentMode = "semantic";
+  let uploadedDocs = [];
+  let totalChunks = 0;
+
+  // --- Upload ---
+  const fileInput = document.getElementById("fileInput");
+  const uploadZone = document.getElementById("uploadZone");
+
+  uploadZone.addEventListener("dragover", e => { e.preventDefault(); uploadZone.classList.add("drag"); });
+  uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag"));
+  uploadZone.addEventListener("drop", e => {
+    e.preventDefault();
+    uploadZone.classList.remove("drag");
+    handleFiles(e.dataTransfer.files);
+  });
+
+  fileInput.addEventListener("change", () => handleFiles(fileInput.files));
+
+  async function handleFiles(files) {
+    const bar = document.getElementById("progressBar");
+    const fill = document.getElementById("progressFill");
+    bar.style.display = "block";
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      fill.style.width = `${((i) / files.length) * 100}%`;
+
+      const fd = new FormData();
+      fd.append("file", file);
+
+      try {
+        const res = await fetch(`${API}/upload`, { method: "POST", body: fd });
+        const data = await res.json();
+        if (res.ok) {
+          uploadedDocs.push({ name: file.name, chunks: data.chunks_created });
+          totalChunks += data.chunks_created;
+          toast(`✅ "${file.name}" indexed — ${data.chunks_created} chunks`, "success");
+          renderDocList();
+        } else {
+          toast(`❌ ${data.detail}`, "error");
+        }
+      } catch {
+        toast("❌ Cannot connect to backend. Is it running?", "error");
+      }
+    }
+
+    fill.style.width = "100%";
+    setTimeout(() => { bar.style.display = "none"; fill.style.width = "0"; }, 600);
+    fileInput.value = "";
+  }
+
+  function renderDocList() {
+    document.getElementById("statDocs").textContent = uploadedDocs.length;
+    document.getElementById("statChunks").textContent = totalChunks;
+
+    const list = document.getElementById("docList");
+    list.innerHTML = uploadedDocs.map(d => `
+      <div class="doc-item">
+        <span class="doc-icon">${d.name.endsWith(".pdf") ? "📕" : "📄"}</span>
+        <span class="doc-name" title="${d.name}">${d.name}</span>
+        <span class="doc-chunks">${d.chunks} chunks</span>
+      </div>
+    `).join("");
+  }
+
+  async function clearDocs() {
+    try {
+      await fetch(`${API}/documents`, { method: "DELETE" });
+      uploadedDocs = [];
+      totalChunks = 0;
+      renderDocList();
+      document.getElementById("resultsArea").innerHTML = `<div class="empty"><div class="empty-icon">🗑</div><div class="empty-text">All documents cleared.</div></div>`;
+      toast("🗑 Documents cleared.", "success");
+    } catch {
+      toast("❌ Cannot connect to backend.", "error");
+    }
+  }
+
+  // --- Search ---
+  function setMode(mode, el) {
+
+  currentMode = mode;
+
+  // Update active tab UI
+  document.querySelectorAll(".tab").forEach(t => {
+    t.classList.remove("active");
+  });
+
+  el.classList.add("active");
+
+  // Clear previous results immediately
+  const area = document.getElementById("resultsArea");
+
+  area.innerHTML = `
+    <div class="spinner"></div>
+  `;
+
+  // Re-run search automatically
+  const query = document.getElementById("queryInput").value.trim();
+
+  if (query) {
+    doSearch();
+  }
+}
+
+  async function doSearch() {
+    const query = document.getElementById("queryInput").value.trim();
+    if (!query) return;
+
+    const top_k = parseInt(document.getElementById("topkSlider").value);
+    const area = document.getElementById("resultsArea");
+    area.innerHTML = `<div class="spinner"></div>`;
+
+    try {
+      if (currentMode === "compare") {
+        const res = await fetch(`${API}/compare`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, top_k })
+        });
+        const data = await res.json();
+        if (!res.ok) { area.innerHTML = errorHtml(data.detail); return; }
+        renderCompare(data, query);
+      } else {
+        const res = await fetch(`${API}/search`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, top_k, search_type: currentMode })
+        });
+        const data = await res.json();
+        if (!res.ok) { area.innerHTML = errorHtml(data.detail); return; }
+        renderResults(data.results, query);
+      }
+    } catch {
+      area.innerHTML = errorHtml("Cannot connect to backend. Make sure the server is running on port 8000.");
+    }
+  }
+
+  function renderResults(results, query) {
+    const area = document.getElementById("resultsArea");
+    if (!results.length) {
+      area.innerHTML = `<div class="empty"><div class="empty-icon">😶</div><div class="empty-text">No results found.</div></div>`;
+      return;
+    }
+    area.innerHTML = results.map(r => resultCardHtml(r, query)).join("");
+  }
+
+  function renderCompare(data, query) {
+    const area = document.getElementById("resultsArea");
+    area.innerHTML = `
+      <div class="compare-grid">
+        <div>
+          <div class="compare-col-title col-semantic">🧠 Semantic Search</div>
+          ${data.semantic_results.map(r => resultCardHtml(r, query)).join("")}
+        </div>
+        <div>
+          <div class="compare-col-title col-keyword">🔑 Keyword Search</div>
+          ${data.keyword_results.map(r => resultCardHtml(r, query)).join("")}
+        </div>
+      </div>`;
+  }
+
+  function resultCardHtml(r, query) {
+    const pct = Math.round(r.score * 100);
+    const terms = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    let text = r.text.slice(0, 300) + (r.text.length > 300 ? "…" : "");
+    terms.forEach(t => {
+      text = text.replace(new RegExp(`(${t})`, "gi"), '<span class="highlight">$1</span>');
+    });
+    return `
+      <div class="result-card">
+        <div class="result-header">
+          <div class="result-rank">${r.rank}</div>
+          <div class="result-source">📄 ${r.source}</div>
+          <div class="score-bar-wrap">
+            <div class="score-bar"><div class="score-fill" style="width:${pct}%"></div></div>
+            <div class="score-val">${pct}%</div>
+          </div>
+        </div>
+        <div class="result-text">${text}</div>
+      </div>`;
+  }
+
+  function errorHtml(msg) {
+    return `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">${msg}</div></div>`;
+  }
+
+  // --- Toast ---
+  function toast(msg, type = "info") {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.className = `toast show ${type}`;
+    setTimeout(() => el.classList.remove("show"), 3500);
+  }
+</script>
+</body>
+</html>
